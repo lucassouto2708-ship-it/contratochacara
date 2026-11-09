@@ -5,52 +5,137 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Gerador de Contratos</title>
 <style>
-:root{--bg:#f5f4f0;--card:#fff;--ink:#1d1d1b;--mut:#6b6a65;--line:#dedbd3;--acc:#2f6b4f;--acc2:#e8f1ec;--err:#b3261e}
-@media (prefers-color-scheme:dark){:root{--bg:#161715;--card:#20221f;--ink:#ecebe6;--mut:#a3a29c;--line:#363833;--acc:#6fbf95;--acc2:#24342b;--err:#ff8a80}}
+:root{
+ --bg:#F5F6F8;--surface:#FFFFFF;--surface-2:#F9FAFB;--ink:#1F2937;--mut:#6B7280;--line:#E2E5E9;--line-strong:#CBD0D6;
+ --pri:#1E4E8C;--pri-hover:#183F72;--pri-soft:#EAF2FF;--on-pri:#FFFFFF;
+ --ok:#16835B;--ok-soft:#E7F4EE;--warn:#B7791F;--warn-soft:#FBF3E4;--err:#C0392B;--err-soft:#FBECEA;
+ --r-sm:4px;--r:6px;--r-lg:8px;--h:36px;
+ --focus:0 0 0 3px rgba(30,78,140,.25);
+ --font:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+ --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+ color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+ --bg:#16191D;--surface:#1F2328;--surface-2:#252A30;--ink:#E5E7EB;--mut:#9AA3AE;--line:#333941;--line-strong:#454C55;
+ --pri:#6E9FE0;--pri-hover:#8AB2E8;--pri-soft:#1E2B3D;--on-pri:#0F1A2A;
+ --ok:#4CC08F;--ok-soft:#183027;--warn:#E0A84A;--warn-soft:#33291A;--err:#EF7A6D;--err-soft:#3A2220;
+ --focus:0 0 0 3px rgba(110,159,224,.35);color-scheme:dark}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{padding:20px 16px 8px;max-width:1000px;margin:auto}
-h1{margin:0;font-size:22px}header p{margin:4px 0 0;color:var(--mut)}
-main{max-width:1000px;margin:auto;padding:8px 16px 60px}
-.tabs{display:flex;gap:6px;margin:12px 0}
-.tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 16px;border-radius:999px;cursor:pointer;font:inherit}
-.tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
-fieldset{border:1px solid var(--line);background:var(--card);border-radius:12px;margin:0 0 14px;padding:14px 16px}
-legend{font-weight:600;padding:0 6px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px 14px}
-label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mut)}
-label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:14px}
-input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
-input[type=checkbox]{width:18px;height:18px;accent-color:var(--acc)}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--font)}
+/* Cabeçalho */
+.appbar{background:var(--surface);border-bottom:1px solid var(--line)}
+.appbar-in{max-width:1080px;margin:auto;padding:0 16px;display:flex;align-items:center;gap:12px;min-height:56px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-mark{width:28px;height:28px;border-radius:var(--r);background:var(--pri);color:var(--on-pri);display:grid;place-items:center;flex:0 0 auto}
+.brand-name{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand-sub{color:var(--mut);font-size:13px;white-space:nowrap}
+.appbar .spacer{flex:1}
+.privacy{display:flex;align-items:center;gap:6px;color:var(--mut);font-size:12px}
+.privacy svg{color:var(--ok)}
+/* Navegação */
+.tabs{max-width:1080px;margin:auto;padding:0 16px;display:flex;gap:4px;border-bottom:0}
+.tabsbar{background:var(--surface);border-bottom:1px solid var(--line)}
+.tabs button{appearance:none;border:0;background:none;color:var(--mut);font:inherit;font-weight:500;padding:10px 12px;margin-bottom:-1px;border-bottom:2px solid transparent;cursor:pointer}
+.tabs button:hover{color:var(--ink)}
+.tabs button.on{color:var(--pri);border-bottom-color:var(--pri)}
+.tabs button:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm)}
+/* Conteúdo */
+main{max-width:1080px;margin:auto;padding:20px 16px 96px}
+.pagehead{margin:0 0 16px}
+.pagehead h1{font-size:20px;font-weight:700;margin:0;letter-spacing:-.01em}
+.pagehead p{margin:2px 0 0;color:var(--mut);font-size:13px}
+/* Seções do formulário */
+fieldset{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-lg);margin:0 0 12px;padding:0;min-width:0}
+legend{float:left;width:100%;padding:10px 16px;font-size:13px;font-weight:600;color:var(--ink);background:var(--surface-2);border-bottom:1px solid var(--line);border-radius:var(--r-lg) var(--r-lg) 0 0;letter-spacing:.01em}
+legend+*{clear:both}
+fieldset>.grid,fieldset>ol,fieldset>.row,fieldset>.msg{margin-left:16px;margin-right:16px}
+fieldset>.grid{padding:14px 0 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px 16px}
 .wide{grid-column:1/-1}
-.calc{background:var(--acc2);border-radius:8px;padding:10px 12px;font-size:14px}
-.calc b{font-variant-numeric:tabular-nums}
-.btn{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:12px 20px;font:inherit;font-weight:600;cursor:pointer}
-.btn.sec{background:transparent;color:var(--acc);border:1px solid var(--acc)}
-.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.wide>.grid{gap:6px 16px}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:500;color:var(--mut)}
+label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:13px;font-weight:400;padding:4px 0;cursor:pointer}
+input,select{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r);height:var(--h);padding:0 10px;width:100%;transition:border-color .12s,box-shadow .12s}
+input::placeholder{color:var(--mut);opacity:.7}
+input:hover,select:hover{border-color:var(--mut)}
+input:focus,select:focus{outline:none;border-color:var(--pri);box-shadow:var(--focus)}
+input[type=number]{font-variant-numeric:tabular-nums}
+input[type=checkbox]{width:16px;height:16px;flex:0 0 auto;margin:0;accent-color:var(--pri);padding:0}
+input[type=checkbox]:focus-visible{box-shadow:var(--focus)}
+.calc{background:var(--pri-soft);border:1px solid color-mix(in srgb,var(--pri) 25%,transparent);border-radius:var(--r);padding:10px 12px;font-size:13px;color:var(--ink)}
+.calc b{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px}
+.calc small{color:var(--mut)}
+/* Botões */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:var(--h);padding:0 16px;border-radius:var(--r);border:1px solid var(--pri);background:var(--pri);color:var(--on-pri);font:inherit;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s}
+.btn:hover{background:var(--pri-hover);border-color:var(--pri-hover)}
+.btn:focus-visible,.btn:focus-within{outline:none;box-shadow:var(--focus)}
+.btn.sec{background:var(--surface);color:var(--ink);border-color:var(--line-strong)}
+.btn.sec:hover{background:var(--surface-2);border-color:var(--mut)}
+label.btn{flex-direction:row;font-size:14px;color:var(--on-pri)!important}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+/* Barra de ações fixa */
+.actionbar{position:sticky;bottom:0;z-index:5;margin:16px -16px 0;padding:12px 16px;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -1px 3px rgba(0,0,0,.04)}
+.actionbar .row{max-width:1080px;margin:auto}
+.actionbar .msg{margin:0 0 0 8px}
+/* Mensagens */
+.msg{font-size:13px}
+.msg:empty{display:none}
+.msg:not(:empty){display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:6px 10px;border-radius:var(--r);background:var(--ok-soft);color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 30%,transparent)}
+.msg.err:not(:empty){background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
 .hide{display:none!important}
-.msg{margin-top:10px;font-size:14px}.msg.err{color:var(--err)}
+/* Instruções */
+ol{padding:14px 0 4px 20px;margin-top:0;margin-bottom:8px;color:var(--ink)}
+ol li{margin:0 0 6px}
+fieldset>.row{padding-bottom:16px}
+fieldset>.msg{margin-bottom:16px}
+code{font-family:var(--mono);font-size:12px;background:var(--surface-2);border:1px solid var(--line);padding:1px 5px;border-radius:var(--r-sm)}
+/* Tabela */
+.scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg)}
+.scroll:empty{display:none}
 table{border-collapse:collapse;width:100%;font-size:13px}
-td,th{border-bottom:1px solid var(--line);padding:6px;text-align:left}
-.scroll{overflow-x:auto}
-code{background:var(--bg);padding:1px 5px;border-radius:4px}
+th{position:sticky;top:0;background:var(--surface-2);color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+td,th{border-bottom:1px solid var(--line);padding:8px 12px;text-align:left;vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td,table tr:hover td{background:var(--surface-2)}
+td:first-child,th:first-child{width:40px;color:var(--mut);font-variant-numeric:tabular-nums}
+td:nth-child(5),th:nth-child(5){text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:500}
+td:last-child{font-size:12px}
+@media (max-width:640px){
+ .brand-sub,.privacy span{display:none}
+ .grid{grid-template-columns:1fr 1fr}
+ .wide>.grid{grid-template-columns:1fr 1fr}
+ .actionbar .row>.btn{flex:1}
+ .actionbar .msg{margin:6px 0 0}
+}
+@media (max-width:420px){.grid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
-<header>
-  <h1>Gerador de Contratos — Chácara Recanto Alvorada</h1>
-  <p>Contrato de locação de espaço de lazer e evento. Tudo roda no navegador; nenhum dado é enviado a servidor.</p>
+<header class="appbar">
+  <div class="appbar-in">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg></div>
+      <span class="brand-name">Chácara Recanto Alvorada</span>
+      <span class="brand-sub">· Contratos de locação</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="privacy" title="Os dados não saem do seu navegador"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Processamento local — nenhum dado é enviado</span></div>
+  </div>
 </header>
-<main>
+<nav class="tabsbar" aria-label="Modo de geração">
   <div class="tabs"><button class="on" data-tab="ind">Contrato individual</button><button data-tab="mass">Em massa (planilha)</button></div>
-
+</nav>
+<main>
   <section id="ind">
+    <div class="pagehead"><h1>Novo contrato</h1><p>Contrato de locação de espaço de lazer e realização de evento. Campos com * são obrigatórios.</p></div>
     <form id="f"></form>
-    <div class="row"><button class="btn" id="gerar">Gerar contrato (.docx)</button><button class="btn sec" id="limpar">Limpar</button></div>
-    <div class="msg" id="msg1"></div>
+    <div class="actionbar"><div class="row"><button class="btn" id="gerar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Gerar contrato (.docx)</button><button class="btn sec" id="limpar">Limpar</button><div class="msg" id="msg1" role="status"></div></div></div>
   </section>
 
   <section id="mass" class="hide">
+    <div class="pagehead"><h1>Geração em massa</h1><p>Gere vários contratos de uma vez a partir de uma planilha.</p></div>
     <fieldset><legend>Como funciona</legend>
       <ol>
         <li>Baixe a planilha modelo (CSV) e preencha uma linha por contrato. Abre no Excel / Google Planilhas.</li>
@@ -58,8 +143,8 @@ code{background:var(--bg);padding:1px 5px;border-radius:4px}
         <li>Colunas em branco usam o valor padrão. Envie o arquivo e baixe o .zip com todos os contratos.</li>
       </ol>
       <div class="row"><button class="btn sec" id="baixarModelo">Baixar planilha modelo</button>
-        <label class="btn" style="flex-direction:row;color:#fff">Enviar planilha (CSV)<input type="file" id="csv" accept=".csv,text/csv" class="hide"></label></div>
-      <div class="msg" id="msg2"></div>
+        <label class="btn">Enviar planilha (CSV)<input type="file" id="csv" accept=".csv,text/csv" class="hide"></label></div>
+      <div class="msg" id="msg2" role="status"></div>
     </fieldset>
     <div class="scroll" id="previa"></div>
     <div class="row" style="margin-top:12px"><button class="btn hide" id="gerarZip">Gerar todos (.zip)</button></div>
