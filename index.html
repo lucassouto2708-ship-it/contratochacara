@@ -254,8 +254,6 @@ const S=[
   {k:"hora_retirada",l:"Retirada dos pertences (dia seguinte) até",d:"10h00"},
   {k:"capacidade",l:"Capacidade máxima (pessoas)",t:"int",d:250},{k:"pernoite_max",l:"Máximo de pernoites",t:"int",d:80},
   {k:"publico",l:"Público estimado (Anexo II)",t:"int"},{k:"pernoites",l:"Pernoites previstos (Anexo II)",t:"int"}]},
- {g:"Estruturas incluídas (cláusula I.2)",f:[{k:"estruturas",t:"multi",o:ESTRUTURAS,d:ESTRUTURAS}]},
- {g:"Serviços adicionais incluídos (cláusula I.3)",f:[{k:"servicos",t:"multi",o:SERVICOS,d:[]}]},
  {g:"Preço e pagamento",f:[
   {k:"preco_unidade",l:"Cobrança por",t:"select",o:["valor fixo","diária","pessoa"]},
   {k:"valor_unitario",l:"Valor unitário (R$)",t:"money",req:1},
@@ -307,7 +305,7 @@ function build(r){
  const he=parseNum(r.hora_extra),cau=parseNum(r.caucao),cap=parseInt(r.capacidade)||0,pm=parseInt(r.pernoite_max)||0;
  const di=parseDate(r.data_inicio),df=parseDate(r.data_fim),ds=parseDate(r.data_saldo),da=parseDate(r.data_assinatura),dc=parseDate(r.cert_eletrica);
  const arr=k=>Array.isArray(r[k])?r[k]:String(r[k]??"").split(";").map(s=>s.trim()).filter(Boolean);
- const est=arr("estruturas"),serv=arr("servicos"),pag=arr("pagamento");
+ const est=ESTRUTURAS,serv=[],pag=arr("pagamento");
  const som=truthy(r.som);
  const nome=g("loc_nome")||B;
  let estTxt=listaPt(est);estTxt=estTxt?estTxt.charAt(0)+estTxt.slice(1)+".":B;
