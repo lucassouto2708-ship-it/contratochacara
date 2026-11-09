@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gerador de Contratos</title>
+<style>
+:root{--bg:#f5f4f0;--card:#fff;--ink:#1d1d1b;--mut:#6b6a65;--line:#dedbd3;--acc:#2f6b4f;--acc2:#e8f1ec;--err:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#161715;--card:#20221f;--ink:#ecebe6;--mut:#a3a29c;--line:#363833;--acc:#6fbf95;--acc2:#24342b;--err:#ff8a80}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:20px 16px 8px;max-width:1000px;margin:auto}
+h1{margin:0;font-size:22px}header p{margin:4px 0 0;color:var(--mut)}
+main{max-width:1000px;margin:auto;padding:8px 16px 60px}
+.tabs{display:flex;gap:6px;margin:12px 0}
+.tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 16px;border-radius:999px;cursor:pointer;font:inherit}
+.tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+fieldset{border:1px solid var(--line);background:var(--card);border-radius:12px;margin:0 0 14px;padding:14px 16px}
+legend{font-weight:600;padding:0 6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px 14px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mut)}
+label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:14px}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--acc)}
+.wide{grid-column:1/-1}
+.calc{background:var(--acc2);border-radius:8px;padding:10px 12px;font-size:14px}
+.calc b{font-variant-numeric:tabular-nums}
+.btn{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:12px 20px;font:inherit;font-weight:600;cursor:pointer}
+.btn.sec{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.hide{display:none!important}
+.msg{margin-top:10px;font-size:14px}.msg.err{color:var(--err)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{border-bottom:1px solid var(--line);padding:6px;text-align:left}
+.scroll{overflow-x:auto}
+code{background:var(--bg);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Gerador de Contratos — Chácara Recanto Alvorada</h1>
+  <p>Contrato de locação de espaço de lazer e evento. Tudo roda no navegador; nenhum dado é enviado a servidor.</p>
+</header>
+<main>
+  <div class="tabs"><button class="on" data-tab="ind">Contrato individual</button><button data-tab="mass">Em massa (planilha)</button></div>
+
+  <section id="ind">
+    <form id="f"></form>
+    <div class="row"><button class="btn" id="gerar">Gerar contrato (.docx)</button><button class="btn sec" id="limpar">Limpar</button></div>
+    <div class="msg" id="msg1"></div>
+  </section>
+
+  <section id="mass" class="hide">
+    <fieldset><legend>Como funciona</legend>
+      <ol>
+        <li>Baixe a planilha modelo (CSV) e preencha uma linha por contrato. Abre no Excel / Google Planilhas.</li>
+        <li>Datas no formato <code>dd/mm/aaaa</code>. Checkbox: <code>sim</code> / <code>não</code>. Listas: itens separados por <code>;</code>. Valores: <code>1500,00</code>.</li>
+        <li>Colunas em branco usam o valor padrão. Envie o arquivo e baixe o .zip com todos os contratos.</li>
+      </ol>
+      <div class="row"><button class="btn sec" id="baixarModelo">Baixar planilha modelo</button>
+        <label class="btn" style="flex-direction:row;color:#fff">Enviar planilha (CSV)<input type="file" id="csv" accept=".csv,text/csv" class="hide"></label></div>
+      <div class="msg" id="msg2"></div>
+    </fieldset>
+    <div class="scroll" id="previa"></div>
+    <div class="row" style="margin-top:12px"><button class="btn hide" id="gerarZip">Gerar todos (.zip)</button></div>
+  </section>
+</main>
+
+<script src="lib/pizzip.min.js"></script>
+<script src="lib/docxtemplater.min.js"></script>
+<script src="lib/papaparse.min.js"></script>
+<script src="lib/jszip.min.js"></script>
+<script>
+// ---------- Esquema dos campos ----------
+const ESTRUTURAS=["chalés","casa principal","sala climatizada para eventos","cozinha","capela","salão de eventos","área coberta","campo de futebol","piscina","áreas externas","bosques","estacionamento"];
+const SERVICOS=["buffet","organização de eventos","vigilância","salva-vidas","recreação","transporte","limpeza durante o evento","fornecimento de bebidas","sonorização","iluminação","gerador de energia","decoração"];
+const PAGTO=["PIX","transferência bancária","dinheiro","cartão","boleto"];
+const S=[
+ {g:"Locatário(a)",f:[
+  {k:"pj",l:"Locatário é pessoa jurídica (empresa)",t:"check"},
+  {k:"razao_social",l:"Razão social",pj:1},{k:"cnpj",l:"CNPJ",pj:1},{k:"endereco_empresa",l:"Endereço da sede",pj:1,w:1},
+  {k:"loc_nome",l:"Nome completo (representante, se PJ)",req:1},{k:"loc_nacionalidade",l:"Nacionalidade",d:"brasileiro(a)"},
+  {k:"loc_estado_civil",l:"Estado civil",t:"select",o:["solteiro(a)","casado(a)","divorciado(a)","viúvo(a)","em união estável"]},
+  {k:"loc_profissao",l:"Profissão"},{k:"loc_cpf",l:"CPF",req:1},{k:"loc_rg",l:"RG / Identidade"},
+  {k:"loc_endereco",l:"Endereço completo",w:1},{k:"loc_telefone",l:"Telefone"},{k:"loc_email",l:"E-mail"}]},
+ {g:"Evento e período",f:[
+  {k:"finalidade",l:"Evento / finalidade",req:1,w:1,ph:"ex.: festa de casamento"},
+  {k:"data_inicio",l:"Data de início",t:"date",req:1},{k:"hora_inicio",l:"Hora de início",d:"8h00"},
+  {k:"data_fim",l:"Data de término",t:"date",req:1},{k:"hora_fim",l:"Hora de término",d:"18h00"},
+  {k:"hora_retirada",l:"Retirada dos pertences (dia seguinte) até",d:"10h00"},
+  {k:"capacidade",l:"Capacidade máxima (pessoas)",t:"int",d:250},{k:"pernoite_max",l:"Máximo de pernoites",t:"int",d:80},
+  {k:"publico",l:"Público estimado (Anexo II)",t:"int"},{k:"pernoites",l:"Pernoites previstos (Anexo II)",t:"int"}]},
+ {g:"Estruturas incluídas (cláusula I.2)",f:[{k:"estruturas",t:"multi",o:ESTRUTURAS,d:ESTRUTURAS}]},
+ {g:"Serviços adicionais incluídos (cláusula I.3)",f:[{k:"servicos",t:"multi",o:SERVICOS,d:[]}]},
+ {g:"Preço e pagamento",f:[
+  {k:"preco_unidade",l:"Cobrança por",t:"select",o:["valor fixo","diária","pessoa"]},
+  {k:"valor_unitario",l:"Valor unitário (R$)",t:"money",req:1},
+  {k:"multiplicador",l:"Multiplicador (quantidade)",t:"num",d:1},
+  {k:"sinal_pct",l:"Sinal (% do total)",t:"num",d:30},
+  {k:"data_saldo",l:"Saldo pago até",t:"date"},
+  {k:"hora_extra",l:"Hora extra (R$)",t:"money",d:400},{k:"caucao",l:"Caução (R$)",t:"money",d:1000},
+  {k:"_calc",t:"calc"},
+  {k:"pagamento",l:"Forma de pagamento",t:"multi",o:PAGTO,d:["PIX"]}]},
+ {g:"Sonorização e elétrica (Anexo II)",f:[
+  {k:"som",l:"Haverá sonorização",t:"check"},{k:"som_empresa",l:"Empresa responsável"},
+  {k:"potencia",l:"Potência estimada",ph:"ex.: 10 kW"},{k:"cert_eletrica",l:"Certificação elétrica apresentada em",t:"date"}]},
+ {g:"Assinatura e testemunhas",f:[
+  {k:"data_assinatura",l:"Data da assinatura",t:"date",d:"hoje"},
+  {k:"test1_nome",l:"Testemunha 1 — nome"},{k:"test1_cpf",l:"Testemunha 1 — CPF"},
+  {k:"test2_nome",l:"Testemunha 2 — nome"},{k:"test2_cpf",l:"Testemunha 2 — CPF"}]}
+];
+const FIELDS=S.flatMap(s=>s.f).filter(f=>f.t!=="calc");
+
+// ---------- Utilitários ----------
+const UN=["","um","dois","três","quatro","cinco","seis","sete","oito","nove","dez","onze","doze","treze","quatorze","quinze","dezesseis","dezessete","dezoito","dezenove"];
+const DZ=["","","vinte","trinta","quarenta","cinquenta","sessenta","setenta","oitenta","noventa"];
+const CT=["","cento","duzentos","trezentos","quatrocentos","quinhentos","seiscentos","setecentos","oitocentos","novecentos"];
+function ext999(n){if(n===100)return"cem";const c=Math.floor(n/100),r=n%100,p=[];if(c)p.push(CT[c]);if(r<20){if(r)p.push(UN[r])}else{p.push(DZ[Math.floor(r/10)]+(r%10?" e "+UN[r%10]:""))}return p.join(" e ")}
+function extenso(n,fem){n=Math.floor(n);if(n===0)return"zero";const esc=[["",""],["mil","mil"],["milhão","milhões"],["bilhão","bilhões"]];const g=[];while(n>0){g.push(n%1000);n=Math.floor(n/1000)}
+ const fz=t=>t.replace(/\bum$/,"uma").replace(/\bdois$/,"duas").replace(/entos\b/g,"entas");
+ const parts=[];for(let i=g.length-1;i>=0;i--){const v=g[i];if(!v)continue;let t=(i===1&&v===1)?"":ext999(v);if(fem&&i<2)t=fz(t);const e=i?(v===1?esc[i][0]:esc[i][1]):"";parts.push({t:(t+" "+e).trim(),v})}
+ return parts.map((p,j)=>j===0?p.t:((j===parts.length-1&&(p.v<100||p.v%100===0))?" e ":", ")+p.t).join("")}
+function extReais(v){v=Math.round(v*100);const r=Math.floor(v/100),c=v%100;let s="";if(r){s=extenso(r);s+=(/(milhão|milhões|bilhão|bilhões)$/.test(s)?" de":"")+(r===1?" real":" reais")}if(c){s+=(r?" e ":"")+extenso(c)+(c===1?" centavo":" centavos")}return s||"zero reais"}
+const brl=v=>v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+function parseNum(v){if(typeof v==="number")return v;v=String(v??"").trim().replace(/R\$\s?/,"");if(!v)return NaN;if(v.includes(","))v=v.replace(/\./g,"").replace(",",".");return parseFloat(v)}
+const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+function parseDate(v){if(!v)return null;v=String(v).trim();let m=v.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(m)return{y:+m[1],m:+m[2],d:+m[3]};m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return{y:+m[3],m:+m[2],d:+m[1]};return null}
+const dExt=d=>d?`${String(d.d).padStart(2,"0")} de ${MESES[d.m-1]} de ${d.y}`:"____ de __________ de ______";
+const dBr=d=>d?`${String(d.d).padStart(2,"0")}/${String(d.m).padStart(2,"0")}/${d.y}`:"";
+const isoToday=()=>{const t=new Date();return`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`};
+function listaPt(a){a=a.filter(Boolean);return a.length<2?(a[0]||""):a.slice(0,-1).join(", ")+" e "+a[a.length-1]}
+const truthy=v=>v===true||/^(s|sim|x|1|true|yes)$/i.test(String(v??"").trim());
+const B="__________";
+
+// ---------- Monta os dados do contrato ----------
+function build(r){
+ const g=k=>{const v=r[k];return(v===undefined||v===null||String(v).trim()==="")?"":String(v).trim()};
+ const pj=truthy(r.pj),erros=[];
+ FIELDS.forEach(f=>{if(f.req&&!g(f.k)&&!(f.t==="multi"))erros.push(f.l)});
+ if(pj&&!g("razao_social"))erros.push("Razão social");
+ const unit=parseNum(r.valor_unitario),mult=parseNum(r.multiplicador)||1,pct=isNaN(parseNum(r.sinal_pct))?30:parseNum(r.sinal_pct);
+ const total=Math.round((isNaN(unit)?0:unit)*mult*100)/100,sinal=Math.round(total*pct)/100,saldo=Math.round((total-sinal)*100)/100;
+ const he=parseNum(r.hora_extra),cau=parseNum(r.caucao),cap=parseInt(r.capacidade)||0,pm=parseInt(r.pernoite_max)||0;
+ const di=parseDate(r.data_inicio),df=parseDate(r.data_fim),ds=parseDate(r.data_saldo),da=parseDate(r.data_assinatura),dc=parseDate(r.cert_eletrica);
+ const arr=k=>Array.isArray(r[k])?r[k]:String(r[k]??"").split(";").map(s=>s.trim()).filter(Boolean);
+ const est=arr("estruturas"),serv=arr("servicos"),pag=arr("pagamento");
+ const som=truthy(r.som);
+ const nome=g("loc_nome")||B;
+ let estTxt=listaPt(est);estTxt=estTxt?estTxt.charAt(0)+estTxt.slice(1)+".":B;
+ const d={
+  qualificacao_pj:pj?`${g("razao_social").toUpperCase()}, pessoa jurídica de direito privado, inscrita no CNPJ sob nº ${g("cnpj")||B}, com sede em ${g("endereco_empresa")||B}, neste ato representada por `:"",
+  loc_nome:nome.toUpperCase(),loc_nacionalidade:g("loc_nacionalidade")||"brasileiro(a)",loc_estado_civil:g("loc_estado_civil")||B,loc_profissao:g("loc_profissao")||B,
+  loc_cpf:g("loc_cpf")||B,loc_rg:g("loc_rg")||B,loc_endereco:g("loc_endereco")||B,loc_telefone:g("loc_telefone")||B,loc_email:g("loc_email")||B,
+  estruturas:estTxt,
+  servicos_incluidos:serv.length?` Ficam, contudo, expressamente incluídos nesta locação os seguintes serviços: ${listaPt(serv)}.`:"",
+  finalidade:g("finalidade")||B,
+  data_inicio_ext:dExt(di),data_fim_ext:dExt(df),hora_inicio:g("hora_inicio")||"8h00",hora_fim:g("hora_fim")||"18h00",hora_retirada:g("hora_retirada")||"10h00",
+  hora_extra:brl(isNaN(he)?400:he),capacidade:cap,capacidade_ext:extenso(cap,true),pernoite_max:String(pm).padStart(2,"0"),pernoite_max_ext:extenso(pm,true),
+  valor_total:brl(total),valor_total_ext:extReais(total),sinal_pct:String(pct).replace(".",","),valor_sinal:brl(sinal),valor_sinal_ext:extReais(sinal),
+  valor_saldo:brl(saldo),valor_saldo_ext:extReais(saldo),saldo_condicao:ds?`até ${dBr(ds)}`:"até a data de início do evento",
+  forma_pagamento:pag.length?listaPt(pag):B,caucao:brl(isNaN(cau)?1000:cau),caucao_ext:extReais(isNaN(cau)?1000:cau),
+  data_assinatura_ext:dExt(da),assinatura_nome:pj?`${g("razao_social").toUpperCase()} — ${nome.toUpperCase()}`:nome.toUpperCase(),
+  test1_nome:g("test1_nome")||B,test1_cpf:g("test1_cpf")||B,test2_nome:g("test2_nome")||B,test2_cpf:g("test2_cpf")||B,
+  anexo_data_horario:di?`${dBr(di)}, ${g("hora_inicio")||"8h00"} a ${dBr(df)}, ${g("hora_fim")||"18h00"}`:B,
+  publico:g("publico")?`${g("publico")} pessoas`:B,pernoites:g("pernoites")||B,sonorizacao:som?"Sim":"Não",
+  som_empresa:som?(g("som_empresa")||B):"Não se aplica",potencia:som?(g("potencia")||B):"Não se aplica",cert_eletrica:som?(dc?dBr(dc):B):"Não se aplica"
+ };
+ const arquivo=`Contrato - ${(pj?g("razao_social"):g("loc_nome"))||"sem nome"} - ${di?dBr(di).replace(/\//g,"-"):""}`.replace(/[\\/:*?"<>|]/g,"").trim()+".docx";
+ return{d,erros,arquivo,total,sinal,saldo};
+}
+
+// ---------- Template ----------
+let TPL=null;
+async function tpl(){if(!TPL){const r=await fetch("modelo.docx");if(!r.ok)throw new Error("Não foi possível carregar modelo.docx");TPL=await r.arrayBuffer()}return TPL}
+async function render(d){const zip=new PizZip(await tpl());const doc=new docxtemplater(zip,{paragraphLoop:true,linebreaks:true,delimiters:{start:"{",end:"}"}});doc.render(d);return doc.getZip().generate({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"})}
+function save(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+
+// ---------- Formulário ----------
+const F=document.getElementById("f");
+function el(h){const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstChild}
+S.forEach(sec=>{const fs=el(`<fieldset><legend>${sec.g}</legend><div class="grid"></div></fieldset>`),gr=fs.querySelector(".grid");
+ sec.f.forEach(f=>{let n;
+  if(f.t==="check")n=el(`<label class="chk wide"><input type="checkbox" name="${f.k}"> ${f.l}</label>`);
+  else if(f.t==="multi"){n=el(`<div class="wide"><div style="font-size:13px;color:var(--mut);margin-bottom:6px">${f.l||""}</div><div class="grid"></div></div>`);const gg=n.querySelector(".grid");
+   f.o.forEach(o=>gg.appendChild(el(`<label class="chk"><input type="checkbox" name="${f.k}" value="${o}" ${f.d.includes(o)?"checked":""}> ${o}</label>`)))}
+  else if(f.t==="select")n=el(`<label>${f.l}<select name="${f.k}">${f.o.map(o=>`<option>${o}</option>`).join("")}</select></label>`);
+  else if(f.t==="calc")n=el(`<div class="calc wide" id="calc"></div>`);
+  else{const type=f.t==="date"?"date":(f.t==="int"||f.t==="num"?"number":"text");const dv=f.d==="hoje"?isoToday():(f.d??"");
+   n=el(`<label class="${f.w?"wide":""}">${f.l}${f.req?" *":""}<input type="${type}" name="${f.k}" ${type==="number"?'step="any"':""} ${f.t==="money"?'inputmode="decimal" placeholder="0,00"':""} ${f.ph?`placeholder="${f.ph}"`:""} value="${f.t==="money"&&dv!==""?brl(dv):dv}"></label>`)}
+  if(f.pj)n.dataset.pj=1;gr.appendChild(n)});F.appendChild(fs)});
+function readForm(){const r={};FIELDS.forEach(f=>{if(f.t==="multi")r[f.k]=[...F.querySelectorAll(`[name="${f.k}"]:checked`)].map(i=>i.value);else if(f.t==="check")r[f.k]=F.querySelector(`[name="${f.k}"]`).checked;else r[f.k]=F.querySelector(`[name="${f.k}"]`).value});return r}
+function refresh(){const r=readForm();F.querySelectorAll("[data-pj]").forEach(n=>n.classList.toggle("hide",!r.pj));
+ const b=build(r),u=r.preco_unidade!=="valor fixo"?` (${r.multiplicador||1} × R$ ${r.valor_unitario||"0,00"} por ${r.preco_unidade})`:"";
+ document.getElementById("calc").innerHTML=`Total: <b>R$ ${brl(b.total)}</b>${u} · Sinal ${b.d.sinal_pct}%: <b>R$ ${brl(b.sinal)}</b> · Saldo: <b>R$ ${brl(b.saldo)}</b><br><small>${b.d.valor_total_ext}</small>`}
+F.addEventListener("input",refresh);refresh();
+const msg=(id,t,err)=>{const m=document.getElementById(id);m.textContent=t;m.className="msg"+(err?" err":"")};
+document.getElementById("gerar").onclick=async()=>{try{const b=build(readForm());if(b.erros.length&&!confirm("Campos obrigatórios vazios: "+b.erros.join(", ")+".\nGerar mesmo assim (com espaços em branco)?"))return;save(await render(b.d),b.arquivo);msg("msg1","Contrato gerado: "+b.arquivo)}catch(e){msg("msg1",e.message,1);console.error(e)}};
+document.getElementById("limpar").onclick=()=>{F.reset();refresh()};
+
+// ---------- Em massa ----------
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x===b));["ind","mass"].forEach(id=>document.getElementById(id).classList.toggle("hide",id!==b.dataset.tab))});
+const exemplo={pj:"não",loc_nome:"Fulano de Tal",loc_nacionalidade:"brasileiro",loc_estado_civil:"casado",loc_profissao:"empresário",loc_cpf:"000.000.000-00",loc_rg:"MG-00.000.000",loc_endereco:"Rua Exemplo, 100, Centro, Governador Valadares/MG",loc_telefone:"(33) 99999-0000",loc_email:"fulano@email.com",
+ finalidade:"festa de aniversário",data_inicio:"20/12/2026",hora_inicio:"8h00",data_fim:"21/12/2026",hora_fim:"18h00",hora_retirada:"10h00",capacidade:"250",pernoite_max:"80",publico:"150",pernoites:"40",
+ estruturas:ESTRUTURAS.join(";"),servicos:"",preco_unidade:"diária",valor_unitario:"3500,00",multiplicador:"2",sinal_pct:"30",data_saldo:"10/12/2026",hora_extra:"400,00",caucao:"1000,00",pagamento:"PIX",
+ som:"sim",som_empresa:"Som & Luz Ltda",potencia:"10 kW",cert_eletrica:"15/12/2026",data_assinatura:"",test1_nome:"",test1_cpf:"",test2_nome:"",test2_cpf:""};
+document.getElementById("baixarModelo").onclick=()=>{const cols=FIELDS.map(f=>f.k);const csv=Papa.unparse({fields:cols,data:[cols.map(c=>exemplo[c]??"")]},{delimiter:";"});
+ const ajuda=FIELDS.map(f=>f.k+" = "+(f.l||f.k)+(f.o?" ("+f.o.join(" | ")+")":"")).join("\n");
+ save(new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"}),"planilha_contratos.csv");
+ save(new Blob([ajuda],{type:"text/plain;charset=utf-8"}),"legenda_colunas.txt")};
+let LINHAS=[];
+function defaults(row){const r={};FIELDS.forEach(f=>{let v=row[f.k];if(v===undefined||String(v).trim()===""){v=f.d==="hoje"?isoToday():(Array.isArray(f.d)?f.d.join(";"):(f.d??""))}r[f.k]=v});return r}
+document.getElementById("csv").onchange=e=>{const file=e.target.files[0];if(!file)return;
+ file.text().then(txt=>{const h=txt.split(/\r?\n/)[0];Papa.parse(txt.replace(/^\ufeff/,""),{delimiter:(h.split(";").length>=h.split(",").length?";":","),header:true,skipEmptyLines:"greedy",transformHeader:h=>h.trim().replace(/^﻿/,""),complete:res=>{
+  LINHAS=res.data.map(defaults).map(build);
+  const bad=LINHAS.filter(l=>l.erros.length).length;
+  document.getElementById("previa").innerHTML=`<table><tr><th>#</th><th>Locatário</th><th>Evento</th><th>Início</th><th>Total</th><th>Pendências</th></tr>${LINHAS.map((l,i)=>`<tr><td>${i+1}</td><td>${l.d.assinatura_nome}</td><td>${l.d.finalidade}</td><td>${l.d.data_inicio_ext}</td><td>R$ ${l.d.valor_total}</td><td style="color:var(--err)">${l.erros.join(", ")}</td></tr>`).join("")}</table>`;
+  msg("msg2",`${LINHAS.length} contrato(s) lidos${bad?` — ${bad} com campos obrigatórios vazios (serão gerados com espaços em branco)`:""}.`,bad);
+  document.getElementById("gerarZip").classList.toggle("hide",!LINHAS.length);e.target.value=""}})})};
+document.getElementById("gerarZip").onclick=async()=>{try{const z=new JSZip(),usados={};
+ for(const l of LINHAS){let n=l.arquivo;if(usados[n]){usados[n]++;n=n.replace(/\.docx$/,` (${usados[n]}).docx`)}else usados[n]=1;z.file(n,await render(l.d))}
+ save(await z.generateAsync({type:"blob"}),"contratos.zip");msg("msg2",`${LINHAS.length} contrato(s) gerados em contratos.zip.`)}catch(e){msg("msg2",e.message,1);console.error(e)}};
+</script>
+</body>
+</html>
