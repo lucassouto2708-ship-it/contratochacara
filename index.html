@@ -94,6 +94,8 @@ input[type=checkbox]:focus-visible{box-shadow:var(--focus)}
 .btn.sec{background:var(--surface);color:var(--ink);border-color:var(--line-strong)}
 .btn.sec:hover{background:var(--surface-2);border-color:var(--mut)}
 label.btn{flex-direction:row;font-size:14px;color:var(--on-pri)!important}
+label.btn.sec{color:var(--ink)!important}
+@media (max-width:640px){.pagehead{flex-direction:column;align-items:stretch}}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 /* Painel de resumo */
 .summary{position:sticky;top:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden}
@@ -123,6 +125,7 @@ label.btn{flex-direction:row;font-size:14px;color:var(--on-pri)!important}
 .msg:not(:empty){display:flex;align-items:center;gap:6px;margin-top:10px;padding:8px 10px;border-radius:var(--r);background:var(--ok-soft);color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 30%,transparent);overflow-wrap:anywhere}
 .msg.err:not(:empty){background:var(--warn-soft);color:var(--warn);border-color:var(--warn-line)}
 .hide{display:none!important}
+#limpar{gap:0}
 @media (max-width:960px){.lg-only{display:none}}
 /* Em massa */
 .mass{max-width:960px}
@@ -185,7 +188,9 @@ td:last-child{font-size:12px}
 </nav>
 <main class="wrap">
   <section id="ind">
-    <div class="pagehead"><div><h1>Novo contrato</h1><p>Locação de espaço de lazer e realização de evento. Campos com * são obrigatórios.</p></div></div>
+    <div class="pagehead"><div><h1>Novo contrato</h1><p>Locação de espaço de lazer e realização de evento. Campos com * são obrigatórios.</p></div>
+      <label class="btn sec" title="Carrega um contrato já gerado e preenche o formulário"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Abrir contrato existente<input type="file" id="abrir" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hide"></label></div>
+    <div class="msg" id="msg0" role="status" style="margin:-4px 0 16px"></div>
     <div class="layout">
       <form id="f"></form>
       <aside class="summary" aria-label="Resumo do contrato">
@@ -334,7 +339,7 @@ function build(r){
 // ---------- Template ----------
 let TPL=null;
 async function tpl(){if(!TPL){const r=await fetch("modelo.docx");if(!r.ok)throw new Error("Não foi possível carregar modelo.docx");TPL=await r.arrayBuffer()}return TPL}
-async function render(d){const zip=new PizZip(await tpl());const doc=new docxtemplater(zip,{paragraphLoop:true,linebreaks:true,delimiters:{start:"{",end:"}"}});doc.render(d);return doc.getZip().generate({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"})}
+async function render(d,raw){const zip=new PizZip(await tpl());const doc=new docxtemplater(zip,{paragraphLoop:true,linebreaks:true,delimiters:{start:"{",end:"}"}});doc.render(d);if(raw)embutir(doc.getZip(),raw);return doc.getZip().generate({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"})}
 function save(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 
 // ---------- Formulário ----------
@@ -356,7 +361,7 @@ function refresh(){const r=readForm();F.querySelectorAll("[data-pj]").forEach(n=
  document.getElementById("calc").innerHTML=`Total: <b>R$ ${brl(b.total)}</b>${u} · Sinal ${b.d.sinal_pct}%: <b>R$ ${brl(b.sinal)}</b> · Saldo: <b>R$ ${brl(b.saldo)}</b><br><small>${b.d.valor_total_ext}</small>`}
 F.addEventListener("input",refresh);refresh();
 const msg=(id,t,err)=>{const m=document.getElementById(id);m.textContent=t;m.className="msg"+(err?" err":"")};
-document.getElementById("gerar").onclick=async()=>{try{const b=build(readForm());if(b.erros.length&&!confirm("Campos obrigatórios vazios: "+b.erros.join(", ")+".\nGerar mesmo assim (com espaços em branco)?"))return;save(await render(b.d),b.arquivo);msg("msg1","Contrato gerado: "+b.arquivo)}catch(e){msg("msg1",e.message,1);console.error(e)}};
+document.getElementById("gerar").onclick=async()=>{try{const b=build(readForm());if(b.erros.length&&!confirm("Campos obrigatórios vazios: "+b.erros.join(", ")+".\nGerar mesmo assim (com espaços em branco)?"))return;save(await render(b.d,readForm()),b.arquivo);msg("msg1","Contrato gerado: "+b.arquivo)}catch(e){msg("msg1",e.message,1);console.error(e)}};
 document.getElementById("limpar").onclick=()=>{F.reset();refresh()};
 
 // ---------- Em massa ----------
@@ -373,13 +378,13 @@ let LINHAS=[];
 function defaults(row){const r={};FIELDS.forEach(f=>{let v=row[f.k];if(v===undefined||String(v).trim()===""){v=f.d==="hoje"?isoToday():(Array.isArray(f.d)?f.d.join(";"):(f.d??""))}r[f.k]=v});return r}
 document.getElementById("csv").onchange=e=>{const file=e.target.files[0];if(!file)return;
  file.text().then(txt=>{const h=txt.split(/\r?\n/)[0];Papa.parse(txt.replace(/^\ufeff/,""),{delimiter:(h.split(";").length>=h.split(",").length?";":","),header:true,skipEmptyLines:"greedy",transformHeader:h=>h.trim().replace(/^﻿/,""),complete:res=>{
-  LINHAS=res.data.map(defaults).map(build);
+  LINHAS=res.data.map(defaults).map(r=>Object.assign(build(r),{raw:r}));
   const bad=LINHAS.filter(l=>l.erros.length).length;
   document.getElementById("previa").innerHTML=`<table><tr><th>#</th><th>Locatário</th><th>Evento</th><th>Início</th><th>Total</th><th>Pendências</th></tr>${LINHAS.map((l,i)=>`<tr><td>${i+1}</td><td>${l.d.assinatura_nome}</td><td>${l.d.finalidade}</td><td>${l.d.data_inicio_ext}</td><td>R$ ${l.d.valor_total}</td><td style="color:var(--err)">${l.erros.join(", ")}</td></tr>`).join("")}</table>`;
   msg("msg2",`${LINHAS.length} contrato(s) lidos${bad?` — ${bad} com campos obrigatórios vazios (serão gerados com espaços em branco)`:""}.`,bad);
   document.getElementById("gerarZip").classList.toggle("hide",!LINHAS.length);e.target.value=""}})})};
 document.getElementById("gerarZip").onclick=async()=>{try{const z=new JSZip(),usados={};
- for(const l of LINHAS){let n=l.arquivo;if(usados[n]){usados[n]++;n=n.replace(/\.docx$/,` (${usados[n]}).docx`)}else usados[n]=1;z.file(n,await render(l.d))}
+ for(const l of LINHAS){let n=l.arquivo;if(usados[n]){usados[n]++;n=n.replace(/\.docx$/,` (${usados[n]}).docx`)}else usados[n]=1;z.file(n,await render(l.d,l.raw))}
  save(await z.generateAsync({type:"blob"}),"contratos.zip");msg("msg2",`${LINHAS.length} contrato(s) gerados em contratos.zip.`)}catch(e){msg("msg2",e.message,1);console.error(e)}};
 
 // ---------- Painel de resumo (somente leitura) ----------
@@ -400,6 +405,64 @@ F.addEventListener("input",resumo);F.addEventListener("change",resumo);document.
  const atual=()=>root.dataset.theme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
  const rot=()=>{txt.textContent=atual()==="dark"?"Modo claro":"Modo escuro"};
  btn.onclick=()=>{const n=atual()==="dark"?"light":"dark";root.dataset.theme=n;try{localStorage.setItem("tema",n)}catch(e){}rot()};rot()})();
+
+// ---------- Abrir contrato existente ----------
+const PROP="DadosGeradorContrato";
+const xesc=t=>t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function embutir(zip,raw){
+ const xml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="${PROP}"><vt:lpwstr>${xesc(JSON.stringify(raw))}</vt:lpwstr></property></Properties>`;
+ zip.file("docProps/custom.xml",xml);
+ let ct=zip.file("[Content_Types].xml").asText();
+ if(!ct.includes("/docProps/custom.xml"))zip.file("[Content_Types].xml",ct.replace("</Types>",'<Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/></Types>'));
+ let rl=zip.file("_rels/.rels").asText();
+ if(!rl.includes("docProps/custom.xml"))zip.file("_rels/.rels",rl.replace("</Relationships>",'<Relationship Id="rIdDadosGerador" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" Target="docProps/custom.xml"/></Relationships>'));
+}
+const xun=t=>t.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,"&");
+function lerEmbutido(zip){const f=zip.file("docProps/custom.xml");if(!f)return null;
+ const m=f.asText().match(new RegExp('name="'+PROP+'"[^>]*>\\s*<vt:lpwstr>([\\s\\S]*?)</vt:lpwstr>'));if(!m)return null;try{return JSON.parse(xun(m[1]))}catch(e){return null}}
+// Para contratos sem dados embutidos: lê o texto do documento
+function lerTexto(zip){
+ const x=zip.file("word/document.xml").asText();
+ const paras=(x.match(/<w:p[ >][\s\S]*?<\/w:p>/g)||[]).map(p=>xun((p.match(/<w:t(?:\s[^>]*)?>[^<]*<\/w:t>/g)||[]).map(t=>t.replace(/<[^>]+>/g,"")).join("")));
+ const T=paras.join("\n"),r={},B=/^_{3,}$/;
+ const g=(re,i=1)=>{const m=T.match(re);if(!m)return"";const v=(m[i]||"").trim();return B.test(v)?"":v};
+ const iso=t=>{const d=parseDate(t);if(d)return`${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`;const m=String(t).match(/(\d{1,2}) de (\S+) de (\d{4})/);if(!m)return"";const mi=MESES.indexOf(m[2].toLowerCase());return mi<0?"":`${m[3]}-${String(mi+1).padStart(2,"0")}-${m[1].padStart(2,"0")}`};
+ const loc=T.match(/LOCATÁRIO\(A\):\s*([\s\S]*?);\n/);if(!loc)return null;let q=loc[1];
+ const pj=q.match(/^(.*?), pessoa jurídica de direito privado, inscrita no CNPJ sob nº (.*?), com sede em (.*?), neste ato representada por ([\s\S]*)$/);
+ if(pj){r.pj=true;r.razao_social=pj[1];r.cnpj=pj[2];r.endereco_empresa=pj[3];q=pj[4]}else r.pj=false;
+ const pf=q.match(/^(.*?), (.*?), (.*?), (.*?), inscrito\(a\) no CPF sob nº (.*?), portador\(a\) da carteira de identidade nº (.*?), residente e domiciliado\(a\) em (.*), telefone (.*?), e-mail (.*)$/);
+ if(pf)["loc_nome","loc_nacionalidade","loc_estado_civil","loc_profissao","loc_cpf","loc_rg","loc_endereco","loc_telefone","loc_email"].forEach((k,i)=>r[k]=pf[i+1]);
+ const tc=s=>s&&s===s.toUpperCase()?s.toLowerCase().replace(/(^|\s)(\S)/g,(a,b,c)=>b+c.toUpperCase()).replace(/\b(Da|De|Do|Das|Dos|E)\b/g,w=>w.toLowerCase()):s;
+ r.loc_nome=tc(r.loc_nome);if(r.razao_social)r.razao_social=r.razao_social;
+ Object.keys(r).forEach(k=>{if(typeof r[k]==="string"&&B.test(r[k].trim()))r[k]=""});
+ r.finalidade=g(/utilizado para (.*?), sendo proibida/);
+ const per=T.match(/início em (.*?), às (.*?), e terminará em (.*?), às (.*?), devendo[\s\S]*?dia seguinte às (.*?)\./);
+ if(per){r.data_inicio=iso(per[1]);r.hora_inicio=per[2];r.data_fim=iso(per[3]);r.hora_fim=per[4];r.hora_retirada=per[5]}
+ r.hora_extra=g(/adicional de R\$ ([\d.,]+) por hora/);r.capacidade=g(/contratado será de (\d+)/);r.pernoite_max=String(parseInt(g(/no máximo (\d+) \(/))||"");
+ r.valor_unitario=g(/preço total da locação é de R\$ ([\d.,]+)/);r.multiplicador="1";r.preco_unidade="valor fixo";
+ r.sinal_pct=g(/pagará ([\d,]+)% do valor/).replace(",",".");r.data_saldo=iso(g(/será pago até (\d{2}\/\d{2}\/\d{4})/));
+ const pg=g(/realizado por (.*?), para a conta/);r.pagamento=pg?PAGTO.filter(o=>new RegExp("(^|, | e )"+o+"(,| e |$)","i").test(pg)):[];
+ r.caucao=g(/caução de R\$ ([\d.,]+)/);r.data_assinatura=iso(g(/Governador Valadares\/MG, (\d{1,2} de \S+ de \d{4})\./));
+ const ts=[...T.matchAll(/^(.*?) — CPF: (.*?) — Assinatura/gm)];ts.slice(0,2).forEach((m,i)=>{r[`test${i+1}_nome`]=B.test(m[1].trim())?"":m[1].trim();r[`test${i+1}_cpf`]=B.test(m[2].trim())?"":m[2].trim()});
+ r.publico=String(parseInt(g(/Público estimado: (\d+)/))||"");r.pernoites=g(/Pernoites: (.*)/);r.som=/Sonorização: Sim/.test(T);
+ if(r.som){r.som_empresa=g(/Empresa responsável: (.*)/);r.potencia=g(/Potência estimada: (.*)/);r.cert_eletrica=iso(g(/apresentada em: (.*)/))}
+ return r}
+function preencher(r){
+ FIELDS.forEach(f=>{const els=F.querySelectorAll(`[name="${f.k}"]`);if(!els.length||!(f.k in r))return;let v=r[f.k];
+  if(f.t==="multi"){const a=Array.isArray(v)?v:String(v||"").split(";").map(t=>t.trim());els.forEach(e=>e.checked=a.includes(e.value))}
+  else if(f.t==="check")els[0].checked=truthy(v);
+  else if(f.t==="date"){const d=parseDate(v);els[0].value=d?`${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`:""}
+  else if(f.t==="money"){const n=parseNum(v);els[0].value=isNaN(n)?"":brl(n)}
+  else if(f.t==="select"){v=String(v||"");if([...els[0].options].some(o=>o.value===v))els[0].value=v}
+  else els[0].value=v??""});
+ refresh();resumo()}
+document.getElementById("abrir").onchange=async e=>{const file=e.target.files[0];e.target.value="";if(!file)return;
+ try{const zip=new PizZip(await file.arrayBuffer());let r=lerEmbutido(zip),modo="completo";
+  if(!r){r=lerTexto(zip);modo="texto"}
+  if(!r){msg("msg0","Não reconheci este arquivo como um contrato gerado por esta plataforma.",1);return}
+  F.reset();preencher(r);
+  msg("msg0",modo==="completo"?`Contrato "${file.name}" carregado. Altere o que precisar e gere novamente.`:`Contrato "${file.name}" lido pelo texto. Confira os campos antes de gerar (o preço entra como valor fixo).`,modo!=="completo");
+  scrollTo({top:0})}catch(err){msg("msg0","Não foi possível ler o arquivo: "+err.message,1);console.error(err)}};
 </script>
 </body>
 </html>
